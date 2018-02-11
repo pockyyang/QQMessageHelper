@@ -1,0 +1,137 @@
+/**head file  QQMsg.h**/
+#pragma once
+class QQMsg
+{
+public:
+	QQMsg();
+	~QQMsg();
+	static QQMsg *Instance()
+	{
+		static QQMsg object;
+		return &object;
+
+	}
+
+	void Start(const wchar_t *msg);
+	static unsigned int WINAPI RunTreadProc(void *param);
+	void SendAll();
+	void PressKey(BYTE vkey);
+	void SendMsg();
+	void AddTextToClipboard();
+private:
+	CString m_msg;
+
+
+};
+
+/**QQMsg.cpp**/
+#include "stdafx.h"
+#include "QQMsg.h"
+
+
+QQMsg::QQMsg()
+{
+}
+
+
+QQMsg::~QQMsg()
+{
+}
+
+void QQMsg::Start(const wchar_t *msg)
+{
+	m_msg = CString(msg);
+	_beginthreadex(NULL,0, QQMsg::RunTreadProc,0,0,0);
+}
+
+unsigned int QQMsg::RunTreadProc(void *param)
+{
+	QQMsg::Instance()->SendAll();
+	return 0;
+}
+
+void QQMsg::SendAll()
+{
+	int errotimes = 0;
+	AddTextToClipboard();
+	HWND QQHwnd = FindWindow(L"TXGuiFoundation", L"QQ");
+	HWND hWnd = GetForegroundWindow();
+	while (errotimes <= 4)
+	{
+		if (QQHwnd != hWnd)
+		{
+			if (!SetForegroundWindow(QQHwnd))
+			{
+				MessageBox(NULL, L"Cannot find QQ on this device", L"", MB_OK);
+				break;
+			}
+		}
+		if (errotimes==0)
+		{
+			PressKey(VK_TAB);
+			PressKey(VK_TAB);
+		}
+
+		PressKey(VK_DOWN);
+		PressKey(VK_RETURN);
+
+		HWND hcurwnd = GetForegroundWindow();
+		if (hcurwnd==QQHwnd)
+		{
+			errotimes++;
+			continue;
+		}
+		errotimes = 0;
+		SendMsg();
+	}
+
+}
+
+void QQMsg::PressKey(BYTE vkey)
+{
+	keybd_event(vkey, 0, 0, 0);
+	Sleep(100);
+	keybd_event(vkey, 0, KEYEVENTF_KEYUP, 0);
+	Sleep(100);
+
+}
+
+
+
+void QQMsg::SendMsg() 
+
+{
+	keybd_event(VK_CONTROL,0,0, 0);
+	Sleep(100);
+
+	keybd_event(0x56, 0, 0, 0);
+	Sleep(100);
+
+	keybd_event(0x56, 0, KEYEVENTF_KEYUP, 0);
+	Sleep(100);
+
+	keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, 0);
+	Sleep(100);
+
+	PressKey(VK_RETURN);
+	PressKey(VK_ESCAPE);
+
+}
+
+void QQMsg::AddTextToClipboard() 
+{
+	int memlen=m_msg.GetLength()*sizeof(wchar_t)+2;
+	HANDLE	hGlobal=GlobalAlloc(GHND,memlen);
+	void *memAddr= GlobalLock(hGlobal);
+	ZeroMemory(memAddr,memlen);
+	memcpy(memAddr, (const void*)m_msg.GetBuffer(), memlen);
+	GlobalUnlock(hGlobal);
+
+
+	OpenClipboard(NULL);
+	EmptyClipboard();
+	SetClipboardData(CF_UNICODETEXT, hGlobal);
+	CloseClipboard();
+
+}
+
